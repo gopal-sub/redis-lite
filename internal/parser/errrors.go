@@ -1,0 +1,6 @@
+package parser
+
+
+import "errors"
+
+var INVALIDMESSAGE = errors.New("INVALID MESSAGE COULD NOT PARSE AS MESSAGE DID NOT FOLLOW PROTOCOL")

@@ -1,11 +1,13 @@
 package main
 
 import (
-
-	"fmt"
+	"redis-lite/internal/server"
 )
 	
 
 func main(){
-	fmt.Println("hi there")
+
+	server := server.NewServer(":3000")
+	server.Start()
+
 }
