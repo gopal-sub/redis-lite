@@ -10,6 +10,7 @@ import (
 	"redis-lite/internal/parser"
 	"redis-lite/internal/protocol"
 	"redis-lite/internal/store"
+	p "redis-lite/internal/persistence"
 )
 
 
@@ -33,6 +34,9 @@ func NewServer(address string) *Server{
 func (s *Server) Start(){
 	//create a default store called default
 	defaultStore := store.NewStore("Default")
+	persist := p.NewPersist(defaultStore)
+	go persist.SaveSnapshot()
+
 	s.AddStoreToGlobalStoreList(defaultStore)
 
 

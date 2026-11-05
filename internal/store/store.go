@@ -1,10 +1,15 @@
 package store
 
-
+import (
+	"sync"
+)
 type Store struct {
 	Store map[string]string
 	StoreID string
 	StoreName string
+	
+	Readlock sync.RWMutex
+	Writelock sync.Mutex
 }
 
 func NewStore(storename string) *Store{
