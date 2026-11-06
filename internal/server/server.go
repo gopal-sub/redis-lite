@@ -5,12 +5,13 @@ import (
 	"net"
 	"redis-lite/internal/client"
 	"strings"
+	"time"
 
 	"redis-lite/internal/framer"
 	"redis-lite/internal/parser"
+	p "redis-lite/internal/persistence"
 	"redis-lite/internal/protocol"
 	"redis-lite/internal/store"
-	p "redis-lite/internal/persistence"
 )
 
 
@@ -35,7 +36,8 @@ func (s *Server) Start(){
 	//create a default store called default
 	defaultStore := store.NewStore("Default")
 	persist := p.NewPersist(defaultStore)
-	go persist.SaveSnapshot()
+	worker := p.NewSnapshotWorker(1*time.Minute, persist)
+	go worker.SnapshotWorker()
 
 	s.AddStoreToGlobalStoreList(defaultStore)
 
@@ -94,7 +96,6 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 				if err != nil {
 					fmt.Println(err)
 					client.SendDataToClient(err.Error())
-					break
 				}
 			case protocol.SELECT:
 				storeName := cmd.Arg

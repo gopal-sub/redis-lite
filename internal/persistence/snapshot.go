@@ -26,10 +26,11 @@ func NewPersist(Store *store.Store) *Persist{
 
 
 
+
+
 func (p *Persist) SaveSnapshot(){
 	timeNow := time.Now().Unix()
-	fileName := fmt.Sprintf("%v_%v", p.Store.StoreName, strconv.FormatInt(timeNow, 10))
-	
+	fileName := fmt.Sprintf("./dump/%v_%v", p.Store.StoreName, strconv.FormatInt(timeNow, 10))
 	file, err := os.Create(string(fileName))
 	if err != nil {
 		fmt.Println(err)
