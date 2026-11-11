@@ -6,6 +6,7 @@ import (
 	"os"
 	"encoding/json"
 	"strconv"
+	"redis-lite/internal/snapshot"
 )
 
 
@@ -32,7 +33,7 @@ func (s *SnapshotWorker) SnapshotWorker(){
 
 	for {
 		<-ticker.C
-		databaseSnapshot := NewDatabaseSnapshot()
+		databaseSnapshot := snapshot.NewDatabaseSnapshot()
 		for _, persist := range s.StoresPersist{
 			storeSnap := persist.CopyLiveStoreDataToBuffer()
 			databaseSnapshot.AddStoreSnapToDatabaseSnapshot(storeSnap)
