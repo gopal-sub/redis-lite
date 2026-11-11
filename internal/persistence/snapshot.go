@@ -1,18 +1,34 @@
 package persistence
 
 import (
-	"encoding/json"
-	"os"
 	"redis-lite/internal/store"
-	"time"
-	"fmt"
-	"strconv"
 )
 
 type Snapshot interface{
 	Save()
 	Load(filename string)
 }
+
+type StoreSnapshot struct {
+	StoreID string
+	StoreName string
+	Store map[string]string
+}
+
+type DatabaseSnapshot struct {
+	Stores []StoreSnapshot
+}
+
+func NewDatabaseSnapshot() *DatabaseSnapshot{
+	return &DatabaseSnapshot{
+		Stores: make([]StoreSnapshot, 0),
+	}
+}
+
+func (d *DatabaseSnapshot) AddStoreSnapToDatabaseSnapshot(storeSnap *StoreSnapshot){
+	d.Stores = append(d.Stores, *storeSnap)
+}
+
 
 type Persist struct{
 	Store *store.Store
@@ -25,22 +41,23 @@ func NewPersist(Store *store.Store) *Persist{
 }
 
 
+func (p *Persist) CopyLiveStoreDataToBuffer() *StoreSnapshot{
+	p.Store.Readlock.RLock()
+	defer p.Store.Readlock.RUnlock()
 
-
-
-func (p *Persist) SaveSnapshot(){
-	timeNow := time.Now().Unix()
-	fileName := fmt.Sprintf("./dump/%v_%v", p.Store.StoreName, strconv.FormatInt(timeNow, 10))
-	file, err := os.Create(string(fileName))
-	if err != nil {
-		fmt.Println(err)
-	}
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(p.Store)
-	if err != nil {
-		fmt.Println(err)
+	storeSnap := StoreSnapshot{
+		StoreID: p.Store.StoreID,
+		StoreName: p.Store.StoreName,
+		Store: make(map[string]string),
 	}
 
+	for k, v := range p.Store.Store{
+		storeSnap.Store[k] = v
+	}
+
+	return &storeSnap
 }
+
+
 
 

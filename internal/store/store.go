@@ -8,6 +8,7 @@ type Store struct {
 	StoreID string
 	StoreName string
 	
+	
 	Readlock sync.RWMutex
 	Writelock sync.Mutex
 }

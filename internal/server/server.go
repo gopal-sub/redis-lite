@@ -6,6 +6,8 @@ import (
 	"redis-lite/internal/client"
 	"strings"
 	"time"
+	"errors"
+	"io"
 
 	"redis-lite/internal/framer"
 	"redis-lite/internal/parser"
@@ -21,6 +23,7 @@ type Server struct{
 	Listner net.Listener
 	Clients map[*client.Client]struct{}
 	GlobalStores []*store.Store
+	SnapshotWorker *p.SnapshotWorker
 }
 
 func NewServer(address string) *Server{
@@ -36,8 +39,10 @@ func (s *Server) Start(){
 	//create a default store called default
 	defaultStore := store.NewStore("Default")
 	persist := p.NewPersist(defaultStore)
-	worker := p.NewSnapshotWorker(1*time.Minute, persist)
-	go worker.SnapshotWorker()
+	snapshotWorker := p.NewSnapshotWorker(1*time.Minute)
+	s.SnapshotWorker = snapshotWorker
+	snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+	go snapshotWorker.SnapshotWorker()
 
 	s.AddStoreToGlobalStoreList(defaultStore)
 
@@ -57,6 +62,10 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 	clientframer := framer.Newframer()
 	for {
 		n , err := client.Conn.Read(buffer)
+		if errors.Is(err, io.EOF){
+			fmt.Println("client disconected")
+			return
+		}
 		if err != nil {
 			fmt.Println(err)
 
@@ -119,6 +128,8 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 				}
 				newStore := store.NewStore(storeName)
 				s.AddStoreToGlobalStoreList(newStore)
+				persist := p.NewPersist(newStore)
+				s.SnapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
 				data := fmt.Sprintf("Created Store %v", newStore.StoreName)
 				client.SendDataToClient(data)
 			}
