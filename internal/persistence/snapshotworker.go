@@ -4,9 +4,9 @@ import (
 	"time"
 	"fmt"
 	"os"
-	"encoding/json"
 	"strconv"
 	"redis-lite/internal/snapshot"
+	"redis-lite/internal/snapshotcodec"
 )
 
 
@@ -41,16 +41,17 @@ func (s *SnapshotWorker) SnapshotWorker(){
 		}
 
 		timeNow := time.Now().Unix()
-		fileName := fmt.Sprintf("./dump/%v.dump", strconv.FormatInt(timeNow, 10))
+		fileName := fmt.Sprintf("./dump/%v.rldump", strconv.FormatInt(timeNow, 10))
 		file, err := os.Create(string(fileName))
 		if err != nil {
 			fmt.Println(err)
 		}
-		encoder := json.NewEncoder(file)
+
+		encoder := snapshotcodec.NewEncoder(file)
 		err = encoder.Encode(databaseSnapshot)
 		if err != nil {
 			fmt.Println(err)
 		}
+	}
 
-		}
 }

@@ -1,19 +1,20 @@
 package server
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"redis-lite/internal/client"
 	"strings"
 	"time"
-	"errors"
-	"io"
-
 	"redis-lite/internal/framer"
 	"redis-lite/internal/parser"
 	p "redis-lite/internal/persistence"
 	"redis-lite/internal/protocol"
 	"redis-lite/internal/store"
+	"redis-lite/internal/snapshotcodec"
 )
 
 
@@ -37,8 +38,9 @@ func NewServer(address string) *Server{
 
 func (s *Server) Start(){
 	//create a default store called default
-	defaultStore := store.NewStore("Default")
+	defaultStore := store.NewStore(store.DEFAULTSTORE)
 	persist := p.NewPersist(defaultStore)
+
 	snapshotWorker := p.NewSnapshotWorker(1*time.Minute)
 	s.SnapshotWorker = snapshotWorker
 	snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
@@ -46,6 +48,7 @@ func (s *Server) Start(){
 
 	s.AddStoreToGlobalStoreList(defaultStore)
 
+	fmt.Println("Server start")
 
 	for {
 		conn, _ := s.Listner.Accept()
@@ -55,6 +58,47 @@ func (s *Server) Start(){
 
 	}
 }
+
+
+
+
+
+func (s *Server) Recover(filename *os.File){
+	decoder := snapshotcodec.NewDecoder(filename)
+	err := decoder.Decode()
+	if err != nil{
+		fmt.Println(err)
+		return
+	}
+	snapshotWorker := p.NewSnapshotWorker(1*time.Minute)
+	s.SnapshotWorker = snapshotWorker
+	for _, store_ := range decoder.Dbsnapshot.Stores{
+		newStore := store.NewStore(store_.StoreName)
+		newStore.StoreID = store_.StoreID
+		newStore.Store = store_.Store
+
+		persist := p.NewPersist(newStore)
+		snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+	}
+	go snapshotWorker.SnapshotWorker()
+
+	ok, defaultStore := s.FindStore(store.DEFAULTSTORE)
+	if !ok{
+		defaultStore = store.NewStore(store.DEFAULTSTORE)
+		persist := p.NewPersist(defaultStore)
+		s.SnapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+
+	}
+
+	for {
+		conn, _ := s.Listner.Accept()
+		newClient := client.NewClient(conn, defaultStore)
+		s.AddClientToGlobalList(newClient)
+		go s.HandleClientConnection(newClient)
+
+	}
+
+}	
 
 
 func (s *Server) HandleClientConnection(client *client.Client) {

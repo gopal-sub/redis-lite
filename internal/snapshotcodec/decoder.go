@@ -2,7 +2,6 @@ package snapshotcodec
 
 import (
 	"encoding/binary"
-	"fmt"
 	"os"
 	"redis-lite/internal/snapshot"
 
@@ -124,9 +123,6 @@ func (d *Decoder) Decode() error{
 		DBSnapshot.Stores = append(DBSnapshot.Stores, storeSN)
 
 	}
-
-
-	fmt.Println(DBSnapshot)
 
 	return nil
 

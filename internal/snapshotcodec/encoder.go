@@ -2,7 +2,6 @@ package snapshotcodec
 
 import (
 	"encoding/binary"
-	"fmt"
 	"os"
 	"redis-lite/internal/snapshot"
 )
@@ -21,14 +20,12 @@ func NewEncoder(file *os.File) *Encoder{
 }
 
 
-func (e *Encoder) Encode(dbsnapshot *snapshot.DatabaseSnapshot) {
+func (e *Encoder) Encode(dbsnapshot *snapshot.DatabaseSnapshot) error{
 
 
 	//first add Magicnumber this is 8 bytes
 	magicBytes := []byte(Magicnumber)
 	//magicByte is in asccii encoding
-	fmt.Println("magicBytes")
-	fmt.Println(magicBytes)
 	e.FileBytes = append(e.FileBytes, magicBytes...)
 
 
@@ -98,4 +95,10 @@ func (e *Encoder) Encode(dbsnapshot *snapshot.DatabaseSnapshot) {
 			e.FileBytes = append(e.FileBytes, valByte...)
 		}
 	}
+
+	_, err := e.File.Write(e.FileBytes)
+	if err != nil{
+		return err
+	}
+	return nil
 }
