@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"os"
 	"redis-lite/internal/snapshot"
-
 )
 
 type Decoder struct{
@@ -123,6 +122,7 @@ func (d *Decoder) Decode() error{
 		DBSnapshot.Stores = append(DBSnapshot.Stores, storeSN)
 
 	}
+	d.Dbsnapshot = DBSnapshot
 
 	return nil
 

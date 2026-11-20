@@ -41,7 +41,7 @@ func (s *Server) Start(){
 	defaultStore := store.NewStore(store.DEFAULTSTORE)
 	persist := p.NewPersist(defaultStore)
 
-	snapshotWorker := p.NewSnapshotWorker(1*time.Minute)
+	snapshotWorker := p.NewSnapshotWorker(3*time.Minute)
 	s.SnapshotWorker = snapshotWorker
 	snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
 	go snapshotWorker.SnapshotWorker()
@@ -70,7 +70,7 @@ func (s *Server) Recover(filename *os.File){
 		fmt.Println(err)
 		return
 	}
-	snapshotWorker := p.NewSnapshotWorker(1*time.Minute)
+	snapshotWorker := p.NewSnapshotWorker(3*time.Minute)
 	s.SnapshotWorker = snapshotWorker
 	for _, store_ := range decoder.Dbsnapshot.Stores{
 		newStore := store.NewStore(store_.StoreName)
@@ -79,6 +79,7 @@ func (s *Server) Recover(filename *os.File){
 
 		persist := p.NewPersist(newStore)
 		snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+		s.AddStoreToGlobalStoreList(newStore)
 	}
 	go snapshotWorker.SnapshotWorker()
 
@@ -90,6 +91,7 @@ func (s *Server) Recover(filename *os.File){
 
 	}
 
+	fmt.Println("Recovery complete, Server started")
 	for {
 		conn, _ := s.Listner.Accept()
 		newClient := client.NewClient(conn, defaultStore)

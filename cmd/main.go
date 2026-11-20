@@ -14,13 +14,15 @@ import (
 func main(){
 
 	args := os.Args[1:]
-	if len(args) < 2{
-		fmt.Println("Not enough args")
-		return
-	}
 	server := server.NewServer(":3000")
-
-	if args[0] == "recover"{
+	if len(args) == 0 {
+		fmt.Println("regular start")
+		server.Start()
+	}else if args[0] == "recover"{
+		if len(args)< 2{
+			fmt.Println("file path of db snapshot not provided")
+			return
+		}
 		filePath := args[1]
 		fmt.Println("in recovery")
 		f, err := os.Open(filePath)
@@ -32,9 +34,6 @@ func main(){
 		server.Recover(f)
 
 		
-
-	}else {
-		server.Start()
 
 	}
 
