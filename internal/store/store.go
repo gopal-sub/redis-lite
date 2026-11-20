@@ -1,18 +1,24 @@
 package store
 
-
+import (
+	"sync"
+	"github.com/google/uuid"
+)
 type Store struct {
 	Store map[string]string
 	StoreID string
 	StoreName string
+	
+	
+	Readlock sync.RWMutex
+	Writelock sync.Mutex
 }
 
 func NewStore(storename string) *Store{
 	return &Store{
 		Store: map[string]string{},
-		StoreID: "abdlandlandlnadls",// make this dynamic and uuid
+		StoreID: uuid.NewString(),// make this dynamic and uuid
 		StoreName: storename,
-
 	}
 }
 

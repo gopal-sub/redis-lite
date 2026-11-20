@@ -1,15 +1,20 @@
 package server
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"redis-lite/internal/client"
 	"strings"
-
+	"time"
 	"redis-lite/internal/framer"
 	"redis-lite/internal/parser"
+	p "redis-lite/internal/persistence"
 	"redis-lite/internal/protocol"
 	"redis-lite/internal/store"
+	"redis-lite/internal/snapshotcodec"
 )
 
 
@@ -19,6 +24,7 @@ type Server struct{
 	Listner net.Listener
 	Clients map[*client.Client]struct{}
 	GlobalStores []*store.Store
+	SnapshotWorker *p.SnapshotWorker
 }
 
 func NewServer(address string) *Server{
@@ -32,9 +38,17 @@ func NewServer(address string) *Server{
 
 func (s *Server) Start(){
 	//create a default store called default
-	defaultStore := store.NewStore("Default")
+	defaultStore := store.NewStore(store.DEFAULTSTORE)
+	persist := p.NewPersist(defaultStore)
+
+	snapshotWorker := p.NewSnapshotWorker(3*time.Minute)
+	s.SnapshotWorker = snapshotWorker
+	snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+	go snapshotWorker.SnapshotWorker()
+
 	s.AddStoreToGlobalStoreList(defaultStore)
 
+	fmt.Println("Server start")
 
 	for {
 		conn, _ := s.Listner.Accept()
@@ -46,11 +60,58 @@ func (s *Server) Start(){
 }
 
 
+
+
+
+func (s *Server) Recover(filename *os.File){
+	decoder := snapshotcodec.NewDecoder(filename)
+	err := decoder.Decode()
+	if err != nil{
+		fmt.Println(err)
+		return
+	}
+	snapshotWorker := p.NewSnapshotWorker(3*time.Minute)
+	s.SnapshotWorker = snapshotWorker
+	for _, store_ := range decoder.Dbsnapshot.Stores{
+		newStore := store.NewStore(store_.StoreName)
+		newStore.StoreID = store_.StoreID
+		newStore.Store = store_.Store
+
+		persist := p.NewPersist(newStore)
+		snapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+		s.AddStoreToGlobalStoreList(newStore)
+	}
+	go snapshotWorker.SnapshotWorker()
+
+	ok, defaultStore := s.FindStore(store.DEFAULTSTORE)
+	if !ok{
+		defaultStore = store.NewStore(store.DEFAULTSTORE)
+		persist := p.NewPersist(defaultStore)
+		s.SnapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
+
+	}
+
+	fmt.Println("Recovery complete, Server started")
+	for {
+		conn, _ := s.Listner.Accept()
+		newClient := client.NewClient(conn, defaultStore)
+		s.AddClientToGlobalList(newClient)
+		go s.HandleClientConnection(newClient)
+
+	}
+
+}	
+
+
 func (s *Server) HandleClientConnection(client *client.Client) {
 	buffer := make([]byte, 1024)
 	clientframer := framer.Newframer()
 	for {
 		n , err := client.Conn.Read(buffer)
+		if errors.Is(err, io.EOF){
+			fmt.Println("client disconected")
+			return
+		}
 		if err != nil {
 			fmt.Println(err)
 
@@ -90,7 +151,6 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 				if err != nil {
 					fmt.Println(err)
 					client.SendDataToClient(err.Error())
-					break
 				}
 			case protocol.SELECT:
 				storeName := cmd.Arg
@@ -114,6 +174,8 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 				}
 				newStore := store.NewStore(storeName)
 				s.AddStoreToGlobalStoreList(newStore)
+				persist := p.NewPersist(newStore)
+				s.SnapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
 				data := fmt.Sprintf("Created Store %v", newStore.StoreName)
 				client.SendDataToClient(data)
 			}
