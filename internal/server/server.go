@@ -123,6 +123,7 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 		for _ , message :=  range validmessages{
 			command, err := parser.Parser(message)
 			if err != nil {
+				client.SendDataToClient("INVALID COMMAND")
 				break
 				//if [valid, valid, invalid, valid] -> last valid wont be processed
 			}
@@ -162,7 +163,14 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 				client.CurrentStore = store
 				data := fmt.Sprintf("Current Store %v", client.CurrentStore.StoreName)
 				client.SendDataToClient(data)
-
+			case protocol.ALLSTORES:
+				storeNames := make([]string, 0)
+				for _,perstore := range s.GlobalStores{
+					storeNames = append(storeNames, perstore.StoreName)
+				}
+				for _, name := range storeNames{
+					client.SendDataToClient(name)
+				}
 			case protocol.CREATESTORE:
 				storeName := cmd.Arg
 				ok, _ := s.FindStore(storeName)

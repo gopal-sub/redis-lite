@@ -10,9 +10,20 @@ const (
 	DELETE COMMANDTYPE = "DELETE"
 	CREATESTORE COMMANDTYPE = "CREATESTORE"
 	SELECT COMMANDTYPE = "SELECT"
+	ALLSTORES COMMANDTYPE = "ALLSTORES" 
 )
 
 type COMMAND struct {
 	Type COMMANDTYPE
 	Arg string
+}
+
+
+var ValidCommand = map[COMMANDTYPE] struct{}{
+	GET: {},
+	SET: {},
+	DELETE: {},
+	CREATESTORE: {},
+	SELECT: {},
+	ALLSTORES: {},
 }

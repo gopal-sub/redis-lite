@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"redis-lite/internal/protocol"
 	"strings"
 )
@@ -13,7 +14,8 @@ func Parser (message string) (*protocol.COMMAND, error){
 	
 
 	if FirstSpace == -1 {
-		return nil, INVALIDMESSAGE
+		command.Type = protocol.COMMANDTYPE(message[:])
+		command.Arg = ""
 	} else {
 		//there is a possiblity of index out of range here fix this
 		command.Type = protocol.COMMANDTYPE(message[:FirstSpace])
@@ -22,21 +24,19 @@ func Parser (message string) (*protocol.COMMAND, error){
 		
 	}
 	ValidCommand := true
-	switch command.Type {
-	case protocol.SET, protocol.GET, protocol.DELETE, protocol.SELECT, protocol.CREATESTORE:
+	if _, exists := protocol.ValidCommand[command.Type]; exists {
+		fmt.Println("control reaches here")
 		if command.Type == protocol.SET{
 			// SET needs to be SET key value -> arg needs to have a space in bw
+			//cannot set a blank val
 			isValidGet := strings.Index(command.Arg, " ")
 			if isValidGet == -1 {
 				ValidCommand = false
 			}
 		}
-		if command.Arg == "" {
+		if command.Type != protocol.ALLSTORES && command.Arg == "" {
 			ValidCommand = false
 		}
-	default:
-		ValidCommand = false
-
 	}
 	
 	if !ValidCommand{
