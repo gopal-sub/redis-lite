@@ -15,6 +15,7 @@ import (
 	"redis-lite/internal/protocol"
 	"redis-lite/internal/store"
 	"redis-lite/internal/snapshotcodec"
+	"redis-lite/internal/set"
 )
 
 
@@ -25,6 +26,9 @@ type Server struct{
 	Clients map[*client.Client]struct{}
 	GlobalStores []*store.Store
 	SnapshotWorker *p.SnapshotWorker
+	Sets []*set.Set
+
+
 }
 
 func NewServer(address string) *Server{
@@ -186,11 +190,25 @@ func (s *Server) HandleClientConnection(client *client.Client) {
 				s.SnapshotWorker.AppendStorePersistenceToSnapShotWorker(persist)
 				data := fmt.Sprintf("Created Store %v", newStore.StoreName)
 				client.SendDataToClient(data)
-			}
-		}
 
-	}
+
+			//SET datastr command handling
+			case protocol.SCREATE:
+				setExists := s.FindSetInSetList(cmd.Arg)
+				if setExists != nil {
+					client.SendDataToClient("Set already exists")
+					return
+				}
+				newSet := set.NewSet(cmd.Arg)
+				s.AddSetToGlobalSetList(newSet)
+			}
+
+
+
+
+		}
 	
 
 
+	}
 }
